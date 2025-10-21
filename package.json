@@ -1,0 +1,26 @@
+{
+  "name": "cardiac-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "commonjs",
+  
+  "scripts": {
+  "start": "node server.js",
+  "start:frontend-server": "cross-env SERVE_FRONTEND=true node server.js",
+  "build-and-serve": "cd ../frontend && npm install && npm run build && cd ../backend && npm run start:frontend-server"
+},
+  "dependencies": {
+    "bcrypt": "^5.1.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "node-cron": "^3.0.2",
+    "nodemailer": "^6.9.3",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
