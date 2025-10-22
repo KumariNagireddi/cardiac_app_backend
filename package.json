@@ -3,14 +3,13 @@
   "version": "1.0.0",
   "main": "server.js",
   "type": "commonjs",
-  
   "scripts": {
-  "start": "node server.js",
-  "start:frontend-server": "cross-env SERVE_FRONTEND=true node server.js",
-  "build-and-serve": "cd ../frontend && npm install && npm run build && cd ../backend && npm run start:frontend-server"
-},
+    "start": "node server.js",
+    "start:frontend-server": "cross-env SERVE_FRONTEND=true node server.js",
+    "build-and-serve": "cd ../frontend && npm install && npm run build && cd ../backend && npm run start:frontend-server"
+  },
   "dependencies": {
-    "bcrypt": "^5.1.0",
+    "bcryptjs": "^3.0.2",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
