@@ -32,9 +32,9 @@ app.use((req, res, next) => {
 
 // Serve frontend build if in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'public')));
+  app.use(express.static(path.join(__dirname, 'frontend')));
   // send index.html for unknown routes (if using client‑side routing)
-  app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+  app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'frontend', 'index.html')));
 }
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));

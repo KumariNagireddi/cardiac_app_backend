@@ -1,26 +1,34 @@
-const nodemailer = require('nodemailer');
+// backend/utils/mailer.js
+const axios = require('axios');
 
-let transporter = null;
+async function sendMail({ from, to, subject, html }, callback) {
+  try {
+    const apiKey = process.env.BREVO_API_KEY;
+    if (!apiKey) throw new Error('Missing BREVO_API_KEY environment variable');
+    const senderEmail = from || process.env.FROM_EMAIL;
 
-if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: (process.env.SMTP_PORT === '465'),
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
-  });
+    await axios.post(
+      'https://api.brevo.com/v3/smtp/email',
+      {
+        sender: { name: 'CardiSave', email: senderEmail },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      },
+      {
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-  transporter.verify().then(() => {
-    console.log('SMTP transporter ready');
-  }).catch(err => {
-    console.error('SMTP verify failed:', err.message);
-    transporter = null;
-  });
-} else {
-  console.warn('SMTP not configured: set SMTP_HOST, SMTP_USER, SMTP_PASS to enable emails.');
+    console.log(`✅ Email sent to ${to}`);
+    if (callback) callback(null, { success: true });
+  } catch (err) {
+    console.error('❌ Failed to send email:', err.response?.data || err.message);
+    if (callback) callback(err);
+  }
 }
 
-module.exports = transporter;
+module.exports = { sendMail };
