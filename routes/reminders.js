@@ -1,7 +1,9 @@
+// backend/routes/reminders.js
 const express = require('express');
 const db = require('../database/db');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const { sendMail } = require('../utils/mailer'); // <-- ADD THIS
 
 function authMiddleware(req, res, next) {
   const h = req.headers.authorization;
@@ -18,28 +20,50 @@ function authMiddleware(req, res, next) {
 
 router.use(authMiddleware);
 
-router.get('/:userId', (req, res) => {
-  const userId = req.params.userId;
-  db.get(`SELECT * FROM reminders WHERE user_id = ? LIMIT 1`, [userId], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(row || null);
-  });
-});
-
 router.post('/create', (req, res) => {
   const { id, userId, patient_id, message, frequency, enabled, remind_time } = req.body;
-  db.run(`INSERT INTO reminders (id, user_id, patient_id, message, frequency, enabled, remind_time, created_at, updated_at, sent) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 0)`, [id, userId, patient_id, message, frequency, enabled ? 1 : 0, remind_time || null], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ id });
-  });
+  
+  db.run(
+    `INSERT INTO reminders (id, user_id, patient_id, message, frequency, enabled, remind_time, created_at, updated_at, sent)
+     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 0)`,
+    [id, userId, patient_id, message, frequency, enabled ? 1 : 0, remind_time || null],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // ✅ Send email if enabled
+      if (enabled) {
+        sendMail({
+          to: process.env.FROM_EMAIL, // or the user’s email
+          subject: 'Reminder Activated',
+          html: `<p>Your ${frequency} reminder has been activated!</p>`,
+        });
+      }
+
+      res.json({ id });
+    }
+  );
 });
 
 router.put('/update', (req, res) => {
   const { id, frequency, enabled, remind_time } = req.body;
-  db.run(`UPDATE reminders SET frequency = ?, enabled = ?, remind_time = ?, updated_at = datetime('now') WHERE id = ?`, [frequency, enabled ? 1 : 0, remind_time || null, id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ changed: this.changes });
-  });
+  db.run(
+    `UPDATE reminders SET frequency = ?, enabled = ?, remind_time = ?, updated_at = datetime('now') WHERE id = ?`,
+    [frequency, enabled ? 1 : 0, remind_time || null, id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // ✅ Send email if enabled
+      if (enabled) {
+        sendMail({
+          to: process.env.FROM_EMAIL, // or user’s email address
+          subject: 'Reminder Updated',
+          html: `<p>Your ${frequency} reminder has been updated and enabled.</p>`,
+        });
+      }
+
+      res.json({ changed: this.changes });
+    }
+  );
 });
 
 module.exports = router;

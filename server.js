@@ -40,63 +40,79 @@ if (process.env.NODE_ENV === 'production') {
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // Cron job for reminders
+// ✅ Cron job for reminders — improved version
+const cron = require('node-cron');
+const db = require('./database/db');
+const { sendMail } = require('./utils/mailer');
+
 cron.schedule('* * * * *', () => {
   const now = new Date().toISOString();
-  console.log('[CRON] checking reminders at', now);
-  const q = `
+  console.log(`[CRON] Checking reminders at ${now}`);
+
+  const query = `
     SELECT r.*, u.email, u.name AS user_name, p.name AS patient_name
     FROM reminders r
     JOIN users u ON r.user_id = u.id
     LEFT JOIN patients p ON r.patient_id = p.id
-    WHERE r.enabled = 1 AND r.sent = 0 AND (r.remind_time IS NULL OR datetime(r.remind_time) <= datetime(?))
+    WHERE r.enabled = 1
+      AND (r.remind_time IS NULL OR datetime(r.remind_time) <= datetime(?))
   `;
-  db.all(q, [now], (err, rows) => {
+
+  db.all(query, [now], (err, rows) => {
     if (err) {
-      console.error('[CRON] reminders query error:', err);
+      console.error('[CRON] Reminder query error:', err);
       return;
     }
+
+    if (!rows.length) {
+      console.log('[CRON] No reminders due.');
+      return;
+    }
+
     rows.forEach(rem => {
-      const q2 = `SELECT * FROM readings WHERE user_id = ? ORDER BY created_at DESC LIMIT 5`;
-      db.all(q2, [rem.user_id], (err2, readings) => {
-        if (err2) {
-          console.error('[CRON] readings query error:', err2);
+      console.log(`[CRON] Sending reminder for ${rem.user_name} (${rem.email})`);
+
+      const html = `
+        <p>Hi ${rem.user_name},</p>
+        <p>${rem.message || 'Please check your blood pressure.'}</p>
+        ${rem.patient_name ? `<p>Patient: <strong>${rem.patient_name}</strong></p>` : ''}
+        <p>Regards,<br/>CardiSave</p>
+      `;
+
+      sendMail({
+        from: process.env.FROM_EMAIL,
+        to: rem.email,
+        subject: `Reminder: ${rem.message || 'BP Check'}`,
+        html
+      }, (errMail) => {
+        if (errMail) {
+          console.error('[CRON] Failed to send email:', errMail);
           return;
         }
-        let html = `<p>Hi ${rem.user_name},</p>`;
-        html += `<p>Your reminder: <strong>${rem.message || 'Please check your blood pressure'}</strong></p>`;
-        if (rem.patient_name) {
-          html += `<p>Patient: <strong>${rem.patient_name}</strong></p>`;
-        }
-        if (readings && readings.length) {
-          html += `<h4>Recent Readings</h4><table border="1" cellpadding="6" style="border-collapse:collapse"><tr><th>Date</th><th>SBP</th><th>DBP</th><th>HR</th></tr>`;
-          readings.forEach(r => {
-            html += `<tr><td>${r.createdAt}</td><td>${r.systolic}</td><td>${r.diastolic}</td><td>${r.heart_rate || ''}</td></tr>`;
-          });
-          html += `</table>`;
-        }
-        html += `<p>Regards,<br/>Cardiac System</p>`;
-        if (mailer) {
-          mailer.sendMail({
-            from: process.env.FROM_EMAIL || process.env.SMTP_USER,
-            to: rem.email,
-            subject: `Health reminder: ${rem.message || 'BP check'}`,
-            html
-          }, (errMail, info) => {
-            if (errMail) {
-              console.error('[CRON] email error', errMail);
-            } else {
-              console.log('[CRON] email sent to', rem.email);
-              db.run('UPDATE reminders SET sent = 1 WHERE id = ?', [rem.id], errupd => {
-                if (errupd) console.error('[CRON] failed to mark sent for reminder', rem.id, errupd);
-              });
-            }
-          });
-        } else {
-          console.warn('[CRON] mailer not configured, skipping email for', rem.email);
-        }
+
+        console.log(`[CRON] Email sent successfully to ${rem.email}`);
+
+        // ✅ Calculate next remind_time based on frequency
+        const nextTime = new Date();
+        if (rem.frequency === 'daily') nextTime.setDate(nextTime.getDate() + 1);
+        if (rem.frequency === 'weekly') nextTime.setDate(nextTime.getDate() + 7);
+        if (rem.frequency === 'monthly') nextTime.setMonth(nextTime.getMonth() + 1);
+
+        // ✅ Update the reminder for the next run
+        db.run(
+          `UPDATE reminders SET remind_time = ?, updated_at = datetime('now'), sent = 0 WHERE id = ?`,
+          [nextTime.toISOString(), rem.id],
+          errUpd => {
+            if (errUpd)
+              console.error('[CRON] Failed to update next reminder time:', errUpd);
+            else
+              console.log(`[CRON] Next reminder scheduled for ${nextTime.toISOString()}`);
+          }
+        );
       });
     });
   });
 });
+
 
 app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
