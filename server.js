@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const cron = require('node-cron');
 const db = require('./database/db');
-const mailer = require('./utils/mailer');
+const { sendMail } = require('./utils/mailer');
 
 const authRoutes = require('./routes/auth');
 const patientsRoutes = require('./routes/patients');
