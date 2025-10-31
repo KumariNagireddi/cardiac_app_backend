@@ -5,7 +5,8 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const cron = require('node-cron');
 const db = require('./database/db');
-const mailer = require('./utils/mailer');
+const { sendMail } = require('./utils/mailer');
+
 
 const authRoutes = require('./routes/auth');
 const patientsRoutes = require('./routes/patients');
@@ -17,12 +18,17 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // app.use(cors());
+// app.use(cors({
+//   origin: ['http://localhost:3000', 'https://your-frontend-domain.com'], // both local + deployed
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+//   credentials: true,
+// }));
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://your-frontend-domain.com'], // both local + deployed
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true,
+  origin: "*",                // allow all origins for now (or replace "*" with your frontend URL)
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
-
 app.use(bodyParser.json());
 
 // Make sure route prefix is consistent with frontend expectations
@@ -38,9 +44,9 @@ app.use((req, res, next) => {
 
 // Serve frontend build if in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'frontend')));
+  app.use(express.static(path.join(__dirname, 'frontend/dist')));
   // send index.html for unknown routes (if using client‑side routing)
-  app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'frontend', 'index.html')));
+  app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'frontend/dist', 'index.html')));
 }
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
