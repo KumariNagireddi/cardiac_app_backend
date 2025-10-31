@@ -10,7 +10,7 @@ async function sendMail({ from, to, subject, html }, callback) {
     await axios.post(
       'https://api.brevo.com/v3/smtp/email',
       {
-        sender: { name: 'CardiSave', email: senderEmail },
+        sender: { name: 'CardiSave', email: 'nagireddi709@gmail.com' },
         to: [{ email: to }],
         subject,
         htmlContent: html,
