@@ -41,6 +41,7 @@ app.use((req, res, next) => {
   console.log('[INCOMING REQUEST]', req.method, req.url);
   next();
 });
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // Serve frontend build if in production
 if (process.env.NODE_ENV === 'production') {
@@ -49,7 +50,6 @@ if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'frontend/dist', 'index.html')));
 }
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // Cron job for reminders
 // ✅ Cron job for reminders — improved version
